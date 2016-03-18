@@ -1,4 +1,4 @@
-function [nn, L]  = nntrain(nn, train_x, train_y, opts, val_x, val_y)
+function [nn, L, FullBatchError]  = nntrain(nn, train_x, train_y, opts, val_x, val_y)
 %NNTRAIN trains a neural net
 % [nn, L] = nnff(nn, x, y, opts) trains the neural network nn with input x and
 % output y for opts.numepochs epochs, with minibatches of size
@@ -9,6 +9,7 @@ function [nn, L]  = nntrain(nn, train_x, train_y, opts, val_x, val_y)
 assert(isfloat(train_x), 'train_x must be a float');
 assert(nargin == 4 || nargin == 6,'number ofinput arguments must be 4 or 6')
 
+FullBatchError			   = [];
 loss.train.e               = [];
 loss.train.e_frac          = [];
 loss.val.e                 = [];
@@ -64,7 +65,8 @@ for i = 1 : numepochs
         str_perf = sprintf('; Full-batch train mse = %f, val mse = %f', loss.train.e(end), loss.val.e(end));
     else
         loss = nneval(nn, loss, train_x, train_y);
-        str_perf = sprintf('; Full-batch train err = %f', loss.train.e(end));
+        str_perf = sprintf('; Full-batch train err2 = %f', loss.train.e(end));
+		FullBatchError = [FullBatchError, loss.train.e(end)];
     end
     if ishandle(fhandle)
         nnupdatefigures(nn, fhandle, loss, opts, i);

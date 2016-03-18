@@ -3,6 +3,8 @@ function nn = nnsetup(architecture)
 % nn = nnsetup(architecture) returns an neural network structure with n=numel(architecture)
 % layers, architecture being a n x 1 vector of layer sizes e.g. [784 100 10]
 
+	architecture
+	
     nn.size   = architecture;
     nn.n      = numel(nn.size);
     

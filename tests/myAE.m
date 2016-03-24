@@ -1,63 +1,90 @@
 
 
-addpath(genpath('C:\Users\chenchen\Documents\GitHub\DeepLearnToolbox'));
+	addpath(genpath('C:\Users\chenchen\Documents\GitHub\DeepLearnToolbox'));
 
-dataset = csvread('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\R1.csv');
+	dataset = csvread('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\R2.csv');
 
-h1 = [100, 110, 120, 130, 140, 150];
-h2 = [20, 30, 40, 50];
+	h1 = [300, 350, 400, 450, 500];
+	h2 = [80, 120, 140];
 
-% if( isequal(exist('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\AE', 'dir'),7) == 0 )
+	if( isequal(exist('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE', 'dir'),7) == 0 )
 	
-	% mkdir('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\AE');
+		mkdir('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE');
 	
-	for a1 = 1:1
-		for a2 = 1:1
+	end
+	
+	for a1 = 1:5
+		for a2 = 1:3
 
-			mkdir(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\AE\' int2str(h1(a1)) '_' int2str(h2(a2))]);
+			mkdir(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2))]);
 		
 			% Setup and train a stacked denoising autoencoder (SDAE)	
 			rand('state',0)
-			sae = saesetup([200 h1(a1) h2(a2)]);
-			sae.ae{1}.activation_function       = 'sigm';
-			sae.ae{1}.learningRate              = 0.25;
-			sae.ae{1}.inputZeroMaskedFraction   = 0.5;
-			sae.ae{2}.activation_function       = 'sigm';
-			sae.ae{2}.learningRate              = 0.25;
-			sae.ae{2}.inputZeroMaskedFraction   = 0.5;
-			opts.numepochs = 2000;
-			opts.batchsize = 864;
-			sae = saetrain(sae, dataset, opts);
-			hidden_layer1 = sae.ae{1}.a{2};
-			hidden_layer2 = sae.ae{2}.a{2};
-			hidden_layer1(:,1)=[];
-			hidden_layer2(:,1)=[];
-
-			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\R1_h1.csv'],hidden_layer1);
-			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\R1_h2.csv'],hidden_layer2);
+			sae = saesetup([200 h1(a1) h2(a2) h1(a1)]);
 			
-			plot(1:2000,sae.ae{1}.FullBatchError,'-b',1:2000,sae.ae{2}.FullBatchError,'-r');
- 			legend(['AE-' int2str(h1(a1))],['AE-' int2str(h2(a2))]);
-			title('FullBatchError');
-			saveas(gcf,['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\FullBatchError.png']);
+			for n = 1:3
+			
+				sae.ae{n}.activation_function       = 'sigm';
+				sae.ae{n}.learningRate              = 0.25;
+				sae.ae{n}.inputZeroMaskedFraction   = 0;
+			
+			end
+			
+			opts.numepochs = 2000;
+			opts.batchsize = 24;
+			sae = saetrain(sae, dataset, opts);
+			
+			% SAE fine-tuning
+            nn = nnsetup([200, h1(a1), h2(a2), h1(a1), 200]);    %h3               
+            nn.activation_function              = 'sigm';
+            nn.learningRate                     = 0.25;
+            nn.inputZeroMaskedFraction          = 0;
+			for n = 1:3
+			
+				nn.W{n} = sae.ae{n}.W{1}; %every ae just 1 hidden layer, so W{1}
+				
+			end
+			
+			% fine-tuning之設定
+			opts.numepochs = 2000;
+			opts.batchsize = 24;
+			
+			% 開始訓練
+			[nn, L, fine_tune_error] = nntrain(nn, dataset, dataset, opts); 
+			
+			% total_batch
+			nn = nnff(nn, dataset, dataset);
+			
+			%印出權重可加在這邊 start
+			input_layer = nn.a{1};
+			input_layer(:,1)=[];
+			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\input_layer.csv'],input_layer);
+			
+			hidden1_layer = nn.a{2};
+			hidden1_layer(:,1)=[];
+			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\hidden1_layer.csv'],hidden1_layer);
+			
+			hidden2_layer = nn.a{3};
+			hidden2_layer(:,1)=[];
+			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\hidden2_layer.csv'],hidden2_layer);
+			
+			hidden3_layer = nn.a{4};
+			hidden3_layer(:,1)=[];
+			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\hidden3_layer.csv'],hidden3_layer);
+			
+			output_layer = nn.a{5};
+			csvwrite(['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\output_layer.csv'],output_layer);
+			%印出權重可加在這邊 end
+			
+			%test
+			[er, bad] = nntest(nn, dataset, dataset);
+            disp(['er= ',num2str(er)]);    
+			
+			% 畫Error-rate
+			plot(1:2000,sae.ae{1}.FullBatchError,'-b',1:2000,sae.ae{2}.FullBatchError,'-r',1:2000,sae.ae{3}.FullBatchError,'-g',1:2000,fine_tune_error,'-m');
+ 			legend(['AE-' int2str(h1(a1))],['AE-' int2str(h2(a2))],['AE-' int2str(h1(a1))],['fine-tune-error']);
+			title('MSE-fullBatchError');
+			saveas(gcf,['C:\Users\chenchen\Orientation\WaveleFeatureSheet\R2\AE\' int2str(h1(a1)) '_' int2str(h2(a2)) '\MSE-FullBatchError.png']);
 	
 		end
 	end
-% end
-
-%  Setup and train a stacked denoising autoencoder (SDAE)
-% rand('state',0)
-% sae = saesetup([200 100 30]);
-% sae.ae{1}.activation_function       = 'sigm';
-% sae.ae{1}.learningRate              = 0.25;
-% sae.ae{1}.inputZeroMaskedFraction   = 0.5;
-% sae.ae{2}.activation_function       = 'sigm';
-% sae.ae{2}.learningRate              = 0.25;
-% sae.ae{2}.inputZeroMaskedFraction   = 0.5;
-% opts.numepochs = 2000;
-% opts.batchsize = 864;
-% sae = saetrain(sae, dataset, opts);
-% hidden_layer = sae.ae{2}.a{2};
-% hidden_layer(:,1)=[];
-
-% csvwrite('C:\Users\chenchen\Orientation\WaveleFeatureSheet\R1_AE.csv',hidden_layer);
